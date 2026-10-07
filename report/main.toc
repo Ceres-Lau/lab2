@@ -1,0 +1,20 @@
+\contentsline {section}{\numberline {1}实验要求}{1}{section.1}%
+\contentsline {section}{\numberline {2}实验原理}{1}{section.2}%
+\contentsline {subsection}{\numberline {2.1}百万富翁问题}{1}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}百万富翁问题原始求解思路}{1}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}不经意传输（Oblivious Transfer, OT）}{2}{subsection.2.3}%
+\contentsline {section}{\numberline {3}实验设置}{2}{section.3}%
+\contentsline {section}{\numberline {4}实验过程}{2}{section.4}%
+\contentsline {subsection}{\numberline {4.1}总体设计：可统计的模拟信道}{3}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}密码学基础运算}{3}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}任务一的实现}{4}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}任务二：$n$ 选 1 OT 的实现}{6}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}任务二：用 OT 求解百万富翁问题}{7}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}协议流程演示}{8}{subsection.4.6}%
+\contentsline {subsection}{\numberline {4.7}正确性测试}{8}{subsection.4.7}%
+\contentsline {subsection}{\numberline {4.8}性能对比}{9}{subsection.4.8}%
+\contentsline {subsection}{\numberline {4.9}可扩展性分析}{11}{subsection.4.9}%
+\contentsline {subsection}{\numberline {4.10}半诚实模型下双方的可见信息}{12}{subsection.4.10}%
+\contentsline {subsection}{\numberline {4.11}为何不应泄露未选消息、选择位与额外财富信息}{13}{subsection.4.11}%
+\contentsline {subsection}{\numberline {4.12}隐私性实证结果}{13}{subsection.4.12}%
+\contentsline {section}{\numberline {5}实验总结}{14}{section.5}%

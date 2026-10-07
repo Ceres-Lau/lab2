@@ -1,0 +1,292 @@
+{
+  "meta": {
+    "python": "3.13.14",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "bits_list": [
+      1024,
+      2048
+    ],
+    "N_main": 100,
+    "date": "2026-10-07 00:43:28",
+    "total_seconds": 290.27534160006326
+  },
+  "demo": {
+    "yao": {
+      "result": "Alice 更富有",
+      "expect": "Alice 更富有",
+      "rounds": 8,
+      "bytes": 1224,
+      "log": [
+        {
+          "seq": 1,
+          "from": "Alice",
+          "to": "Bob",
+          "note": "步骤1  RSA 公钥 (n, e)",
+          "bytes": 131
+        },
+        {
+          "seq": 2,
+          "from": "Bob",
+          "to": "Alice",
+          "note": "步骤2  k = x^e mod n − b（财富被随机数盲化）",
+          "bytes": 128
+        },
+        {
+          "seq": 3,
+          "from": "Alice",
+          "to": "Bob",
+          "note": "步骤3  素数 p 与 N=10 个压缩值 W_i（已按自身财富扰动）",
+          "bytes": 352
+        },
+        {
+          "seq": 4,
+          "from": "Bob",
+          "to": "Alice",
+          "note": "步骤4  判定结果 1 比特（True = 加密方财富 ≥ 判定方财富）",
+          "bytes": 1
+        },
+        {
+          "seq": 5,
+          "from": "Bob",
+          "to": "Alice",
+          "note": "步骤1  RSA 公钥 (n, e)",
+          "bytes": 131
+        },
+        {
+          "seq": 6,
+          "from": "Alice",
+          "to": "Bob",
+          "note": "步骤2  k = x^e mod n − b（财富被随机数盲化）",
+          "bytes": 128
+        },
+        {
+          "seq": 7,
+          "from": "Bob",
+          "to": "Alice",
+          "note": "步骤3  素数 p 与 N=10 个压缩值 W_i（已按自身财富扰动）",
+          "bytes": 352
+        },
+        {
+          "seq": 8,
+          "from": "Alice",
+          "to": "Bob",
+          "note": "步骤4  判定结果 1 比特（True = 加密方财富 ≥ 判定方财富）",
+          "bytes": 1
+        }
+      ]
+    },
+    "ot": {
+      "result": "Alice 更富有",
+      "expect": "Alice 更富有",
+      "rounds": 4,
+      "bytes": 1891,
+      "log": [
+        {
+          "seq": 1,
+          "from": "Alice",
+          "to": "Bob",
+          "note": "OT 第1轮  公钥 (N,e) 与 n=10 个盲化因子 x_i",
+          "bytes": 1411
+        },
+        {
+          "seq": 2,
+          "from": "Bob",
+          "to": "Alice",
+          "note": "OT 第2轮  y = x_σ · k^e mod N（选择被随机 e 次幂盲化）",
+          "bytes": 128
+        },
+        {
+          "seq": 3,
+          "from": "Alice",
+          "to": "Bob",
+          "note": "OT 第3轮  n=10 条加密消息 c_i = m_i ⊕ H(k_i)",
+          "bytes": 320
+        },
+        {
+          "seq": 4,
+          "from": "Bob",
+          "to": "Alice",
+          "note": "结果回传  双方共同输出（三态结果本身）",
+          "bytes": 32
+        }
+      ]
+    },
+    "ot8": {
+      "got": "消息3",
+      "expect": "消息3"
+    }
+  },
+  "correctness": {
+    "exhaustive_n10": {
+      "cases": 200,
+      "correct": 200,
+      "wrong": 0,
+      "accuracy": 100.0,
+      "seconds": 11.721919599920511
+    },
+    "random_n100": {
+      "cases": 106,
+      "yao_correct": 106,
+      "yao_total": 106,
+      "yao_accuracy": 100.0,
+      "ot_correct": 106,
+      "ot_total": 106,
+      "ot_accuracy": 100.0,
+      "seconds": 143.22400429996196,
+      "by_outcome": {
+        "Bob 更富有": {
+          "n": 43,
+          "yao_ok": 43,
+          "ot_ok": 43
+        },
+        "双方财富相等": {
+          "n": 18,
+          "yao_ok": 18,
+          "ot_ok": 18
+        },
+        "Alice 更富有": {
+          "n": 45,
+          "yao_ok": 45,
+          "ot_ok": 45
+        }
+      }
+    },
+    "ot_self": {
+      "cases": 160,
+      "correct": 160,
+      "accuracy": 100.0
+    }
+  },
+  "privacy": {
+    "sender": {
+      "mean0": 0.49359783246479266,
+      "mean1": 0.4892906452590081,
+      "std0": 0.296336454673839,
+      "std1": 0.28767075542945214,
+      "classifier_acc": 53.0,
+      "samples": 300
+    },
+    "receiver": {
+      "decryptable": 1,
+      "expected": 1,
+      "garble_hex": [
+        "06b8c33c4192358603213edf",
+        "e58f8ce696b9e8b4a2e5af8c",
+        "844930d00a46871b6bb7e3b1"
+      ],
+      "sigma": 1
+    },
+    "visible": {
+      "Yao_Alice_可见": [
+        "自己的财富 a",
+        "两轮各一个盲化值 k = x^e − b mod n",
+        "自己生成的 RSA 私钥 d",
+        "对方回传的 1 比特判定结果",
+        "最终三态输出"
+      ],
+      "Yao_Bob_可见": [
+        "自己的财富 b",
+        "Alice 的 RSA 公钥 (n,e)",
+        "素数 p 与 N 个压缩值 W_i（其中只有自己那一位可解读）",
+        "最终三态输出"
+      ],
+      "OT_Alice_可见": [
+        "自己的财富 a",
+        "自己的 RSA 密钥对",
+        "盲化选择 y = x_σ·k^e mod N",
+        "最终三态输出"
+      ],
+      "OT_Bob_可见": [
+        "自己的财富 b",
+        "公钥 (N,e) 与 N 个盲化因子 x_i",
+        "N 条密文 c_i（只能解开第 b 条）",
+        "最终三态输出"
+      ]
+    }
+  },
+  "performance": {
+    "rows": [
+      {
+        "bits": 1024,
+        "scheme": "任务一 Yao 原始方案",
+        "time_with_keygen": 0.9183975999942049,
+        "time_online": 0.7623831300181336,
+        "time_keygen": 0.09383095998782665,
+        "bytes": 6984,
+        "rounds": 8,
+        "modexp": 308
+      },
+      {
+        "bits": 1024,
+        "scheme": "任务二 1-out-of-n OT",
+        "time_with_keygen": 0.4531956199905835,
+        "time_online": 0.3526502199936658,
+        "time_keygen": 0.09383095998782665,
+        "bytes": 16290,
+        "rounds": 4,
+        "modexp": 101
+      },
+      {
+        "bits": 2048,
+        "scheme": "任务一 Yao 原始方案",
+        "time_with_keygen": 6.6665825399803,
+        "time_online": 5.024909000005573,
+        "time_keygen": 0.7213297799928113,
+        "bytes": 13959,
+        "rounds": 8,
+        "modexp": 305
+      },
+      {
+        "bits": 2048,
+        "scheme": "任务二 1-out-of-n OT",
+        "time_with_keygen": 3.2313216199865566,
+        "time_online": 2.372854939987883,
+        "time_keygen": 0.7213297799928113,
+        "bytes": 29346,
+        "rounds": 4,
+        "modexp": 101
+      }
+    ]
+  },
+  "scalability": {
+    "rows": [
+      {
+        "N": 10,
+        "yao_ms": 86.51246000081301,
+        "yao_bytes": 1224,
+        "yao_rounds": 8,
+        "ot_ms": 36.44286000635475,
+        "ot_bytes": 1890,
+        "ot_rounds": 4
+      },
+      {
+        "N": 25,
+        "yao_ms": 191.14941998850554,
+        "yao_bytes": 2184,
+        "yao_rounds": 8,
+        "ot_ms": 90.75001999735832,
+        "ot_bytes": 4291,
+        "ot_rounds": 4
+      },
+      {
+        "N": 50,
+        "yao_ms": 376.0101000079885,
+        "yao_bytes": 3783,
+        "yao_rounds": 8,
+        "ot_ms": 182.08951998967677,
+        "ot_bytes": 8291,
+        "ot_rounds": 4
+      },
+      {
+        "N": 100,
+        "yao_ms": 728.1605399912223,
+        "yao_bytes": 6979,
+        "yao_rounds": 8,
+        "ot_ms": 356.34652003645897,
+        "ot_bytes": 16290,
+        "ot_rounds": 4
+      }
+    ]
+  }
+}

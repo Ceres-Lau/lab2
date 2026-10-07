@@ -1,0 +1,648 @@
+%!TeX program = xelatex
+\documentclass{SYSUReport}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{tikz-qtree}
+\usepackage{adjustbox} % 加入调整表格大小的宏包
+\usepackage{booktabs} % 用于创建更漂亮的表格
+\usepackage{multirow} % 用于合并单元格
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{caption} % 新增，用于固定图片位置，不浮动
+\setcounter{topnumber}{4}
+\setcounter{bottomnumber}{4}
+\setcounter{totalnumber}{8}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.95}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.8}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{gray!10},      % 背景色
+    basicstyle=\ttfamily\small,           % 基本字体
+    keywordstyle=\color{blue!70!black},   % 关键字颜色
+    commentstyle=\color{green!40!black},  % 注释颜色
+    stringstyle=\color{purple!60!black},  % 字符串颜色
+    numbers=left,                         % 行号
+    numberstyle=\tiny\color{gray},
+    frame=single,                         % 边框
+    breaklines=true,                      % 自动换行
+    captionpos=b                          % caption 在底部
+}
+\lstset{style=mystyle}
+% 根据个人情况修改
+\headl{24337058 刘博文}
+\headc{}
+\headr{数据安全和隐私保护}
+\lessonTitle{数据安全和隐私保护}
+\reportTitle{数据安全和隐私保护第二次实验}
+\stuname{刘博文}
+\stuid{24337058}
+\inst{网络空间安全学院}
+\major{网络空间安全}
+% 修改为具体日期
+\date{2026 年 9 月 10 日}
+\begin{document}
+\cover
+\thispagestyle{empty} % 首页不显示页码
+\clearpage
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\section{实验要求}
+1、使用 Python 或其他熟悉的语言完成实验，可调用密码库中的基础运算。两个任务均输出“Alice 更富有”“Bob 更富有”或“双方财富相等”，不得输出对方财富及差值。
+
+2、任务一为解决百万富翁问题。实现基于公钥变换、随机数和交互判断的原始求解方案，说明密钥生成、消息构造、比较判定及相等情况的处理。不得以明文交换、共享变量直接比较或可信第三方代算替代协议。
+
+3、任务二则是用 OT 解决百万富翁问题。先实现 n 选 1 OT，可采用RSA或 Diffie-Hellman 体系实现，需说明采用的具体协议与参数。随后使用OT处理百万富翁问题。
+
+4、比较实验结果并分析。在相同设备、输入和可比密码参数下，记录两种方案的正确率、耗时、通信字节数及交互轮数。并对两种方案的隐私性进行分析，列出双方可见信息，解释为何不应泄露未选消息、选择位或额外的财富信息。
+
+5、实验要求提交完整代码和实验报告的PDF文件，实验报告需包括实验原理、实验环境、两项任务的实现方式、关键代码解释、测试结果比较和分析，提交方式以后续课程通知为准，截止时间10.8晚24时。
+
+\section{实验原理}
+\subsection{百万富翁问题}
+
+百万富翁问题是 Andrew Yao 在 1982 年提出的，一般被认为是安全多方计算（Secure Multi-party Computation, MPC）的起点。问题本身很直观：Alice 和 Bob 各有一个财富值 \(a\) 和 \(b\)，两人想知道谁更富，但谁都不愿意把自己的具体数字告诉对方。
+
+要算的函数就是比较：\(a > b\) 输出 Alice 更富有，\(a < b\) 输出 Bob 更富有，\(a = b\) 输出双方财富相等。结果本身以及由结果必然能推出来的东西可以知道，除此之外不应该多知道任何信息。我们这门课和这次实验都按半诚实模型来做，也就是双方会老老实实按协议走，但私下会拿收到的消息反复琢磨。
+
+\subsection{百万富翁问题原始求解思路}
+
+原始方案的思路是用公钥变换把 Bob 的财富索引藏起来：Bob 用自己的随机数把财富盲化后发给 Alice，Alice 对一串候选位置做私钥运算，再用一个素数把结果压缩，并按自己的财富对其中一部分结果做调整；Bob 最后只在自己那一位上做检验，就能判断出大小。实现的时候有几处容易踩坑：模运算的边界、余数之间的间距检验、以及不满足条件时的失败重试。另外，单跑一次只能区分 \(a \ge b\) 和 \(a < b\)；要区分相等，得交换角色、换一批全新随机数再跑一次。
+
+\subsection{不经意传输（Oblivious Transfer, OT）}
+
+不经意传输是 Michael Rabin 在 1981 年提出的，算是一种很基础的密码学协议，核心想法是“选择性隐私传输”：
+
+发送方手里有两条消息 \(m_0, m_1\)。接收方选一个索引 \(b\)，只拿到 \(m_b\)；
+
+同时发送方不知道 \(b\) 是几，接收方也拿不到另一条 \(m_{1-b}\)；
+
+在 1-out-of-2 OT 里，通常用公钥加密或同态加密来实现。
+
+一个简单的公钥实现大概长这样：
+
+\begin{enumerate}
+    \item 接收方先生成一对公私钥，把加密过的选择信息发给发送方。
+    \item 发送方拿这个信息算出两个加密消息，使得只有一个能被正确解密。
+    \item 接收方用自己的私钥解出选中的那条，另一条还是加密状态。
+\end{enumerate}
+
+\section{实验设置}
+
+\begin{itemize}
+    \item \textbf{操作系统}：Windows-11-10.0.26100-SP0
+    \item \textbf{处理器}：Intel64 Family 6 Model 183 Stepping 1, GenuineIntel
+    \item \textbf{编程语言}：Python 3.13.14（仅使用标准库）
+    \item \textbf{密码学基础运算}：Miller-Rabin 素性检测、随机大素数生成、RSA 密钥对生成、模幂运算都是\textbf{自己写的}（见代码 \ref{lst:prime}），没有调用第三方密码库
+    \item \textbf{散列函数}：\texttt{hashlib.sha256}，用于 OT 掩码密钥流（MGF1 风格）
+    \item \textbf{随机数}：\texttt{secrets.SystemRandom}（操作系统密码学安全随机源）
+    \item \textbf{密钥参数}：RSA 模数 1024 / 2048 位，公钥指数 $e=65537$；Yao 方案中压缩素数 $p$ 取 $|n|/4$ 位
+    \item \textbf{排版工具}：XeLaTeX（MiKTeX 发行版）+ SYSU 实验报告模板，插图用 TikZ 画成矢量图
+\end{itemize}
+
+\section{实验过程}
+
+工程结构是这样分的：\texttt{common.py}（公共基础：信道、数论、RSA、掩码）、\texttt{yao\_millionaires.py}（任务一）、\texttt{ot\_rsa.py}（$n$ 选 1 OT）、\texttt{ot\_millionaires.py}（用 OT 解百万富翁问题）、\texttt{run\_experiments.py}（实验入口）。
+
+\subsection{总体设计：可统计的模拟信道}
+
+为了能客观比较通信开销和交互轮数，我没有让两方直接共享变量，而是让所有消息都必须过一个\textbf{可统计的信道}。信道按“序列化后的字节数”累加通信量，每发一条消息记一轮，同时留一份可审计的消息日志（表 \ref{tab:logyao}、表 \ref{tab:logot}）。
+
+\begin{lstlisting}[language=Python, caption={可统计的模拟信道（common.py 节选）}, label={lst:channel}]
+class Channel:
+    # Simulated channel: meters traffic (bytes) and interaction rounds.
+    def __init__(self):
+        self.bytes = 0      # total transmitted bytes
+        self.rounds = 0     # total number of messages
+        self.log = []       # auditable message log
+
+    def send(self, sender, receiver, payload, note=""):
+        size = wire_size(payload)          # serialized length in bytes
+        self.bytes += size
+        self.rounds += 1
+        self.log.append({"seq": self.rounds, "from": sender,
+                         "to": receiver, "note": note, "bytes": size})
+        return payload
+
+
+def wire_size(obj):
+    # Wire size of int / bytes / str / list / tuple / dict.
+    if isinstance(obj, int):
+        return max(1, (obj.bit_length() + 7) // 8)
+    if isinstance(obj, (bytes, bytearray)):
+        return len(obj)
+    if isinstance(obj, str):
+        return len(obj.encode("utf-8"))
+    if isinstance(obj, (list, tuple, set)):
+        return sum(wire_size(x) for x in obj)
+    ...
+\end{lstlisting}
+
+\subsection{密码学基础运算}
+
+\begin{lstlisting}[language=Python, caption={Miller-Rabin 素性检测与 RSA 密钥生成}, label={lst:prime}]
+# Miller-Rabin probabilistic primality test
+def is_probable_prime(n, rounds=40):
+    for p in _SMALL_PRIMES:
+        if n == p: return True
+        if n % p == 0: return False
+    d, s = n - 1, 0
+    while d % 2 == 0:
+        d //= 2; s += 1
+    for _ in range(rounds):
+        a = _rng.randrange(2, n - 1)
+        x = modexp(a, d, n)
+        if x == 1 or x == n - 1: continue
+        for _ in range(s - 1):
+            x = x * x % n
+            if x == n - 1: break
+        else:
+            return False
+    return True
+
+
+# Generate an RSA key pair of `bits` bits
+def gen_rsa_keypair(bits, e=65537):
+    while True:
+        p = gen_prime(bits // 2)
+        q = gen_prime(bits // 2)
+        if p == q: continue
+        n = p * q
+        phi = (p - 1) * (q - 1)
+        if math.gcd(e, phi) != 1: continue
+        return RSAKey(n, e, pow(e, -1, phi), bits)
+\end{lstlisting}
+
+\subsection{任务一的实现}
+
+我把加密方和判定方拆成了两个独立的类 \texttt{YaoEncryptor} / \texttt{YaoDecider}，各自只持有自己的私有输入，任何一方在代码层面就拿不到对方的财富变量。
+
+\begin{lstlisting}[language=Python, caption={任务一 步骤2：判定方盲化自己的财富}, label={lst:yaobob}]
+# --- Bob (decider): blind his own wealth with a fresh random x ---
+def step2_blind(self, ch, peer, n, e):
+    x = rand_below(n)                  # fresh randomness, |x| ~ |n|
+    C = modexp(x, e, n)                # public-key transform C = x^e mod n
+    k = (C - self.wealth) % n          # modulo boundary: C - b may be negative
+    ch.send(self.name, peer, k, "k = x^e mod n - b")
+    return k
+\end{lstlisting}
+
+代码 \ref{lst:yaobob} 里，$x$ 每一轮都是\textbf{全新}随机的；$k=(C-b)\bmod n$ 显式取了模，就是为了处理 $C-b$ 可能是负数这种\textbf{模运算边界}。
+
+\begin{lstlisting}[language=Python, caption={任务一 步骤3：私钥运算、模素数压缩、间距检验与扰动}, label={lst:yaoalice}]
+# --- Alice (encryptor): private-key op, mod-p folding, then perturb ---
+def step3_transform(self, ch, peer, k, N, p_bits):
+    n, d = self.key.n, self.key.d
+    nums = [(k + i) % n for i in range(1, N + 1)]   # modulo boundary
+    while True:                                     # retry with a fresh prime
+        p = gen_prime(p_bits)
+        Y = [modexp(v, d, n) for v in nums]         # N private-key modexps
+        Z = [y % p for y in Y]
+        ok = True
+        if Z and max(Z) + 1 >= p:                   # (b) no wrap around p
+            ok = False
+        if ok:                                      # (a) pairwise gap >= 2
+            srt = sorted(Z)
+            for i in range(1, len(srt)):
+                if srt[i] - srt[i - 1] < 2:
+                    ok = False
+                    break
+        if ok:
+            break
+    # perturb: keep Z_i for i <= a, add 1 for i > a
+    W = [Z[i] if (i + 1) <= self.wealth else Z[i] + 1 for i in range(N)]
+    ch.send(self.name, peer, [p] + W, "prime p and N folded values")
+    return p, W
+\end{lstlisting}
+
+代码 \ref{lst:yaoalice} 有三个地方我觉得比较关键：
+\begin{enumerate}
+    \item $(k+i)\bmod n$ 统一取模，免得 $k+i$ 越过模数边界；
+    \item \textbf{间距检验加失败重试}：要求任意两个 $Z_i$ 相差至少 $2$、且 $Z_i+1<p$，这样“加 $1$”既不会和其他 $Z_j$ 撞上，也不会越过模数边界；不满足就换个新素数 $p$ 重算。取 $|p|=|n|/4$ 的时候这个条件基本一次就过（实测每轮就 1 次尝试）。
+    \item \textbf{按自己的财富做扰动}：$i\le a$ 原样发，$i>a$ 加 $1$，这是整个协议里唯一泄露大小关系的地方，而且只泄露 1 比特。
+\end{enumerate}
+
+\begin{lstlisting}[language=Python, caption={任务一 步骤4：判定方只检查自己的位置}, label={lst:yaodec}]
+# --- Bob (decider): only inspect his OWN slot ---
+def step4_decide(self, ch, peer, p, W):
+    G = self._x % p                       # Y_b = (k+b)^d = (x^e)^d = x
+    result = (W[self.wealth - 1] == G)    # True  <=>  w_p >= w_q
+    ch.send(self.name, peer, 1 if result else 0, "1-bit decision")
+    return result
+\end{lstlisting}
+
+完整求解时交换角色再跑一轮，两轮结果合起来就能区分三态（见 \texttt{yao\_millionaires}）。
+
+\subsection{任务二：$n$ 选 1 OT 的实现}
+
+\begin{lstlisting}[language=Python, caption={基于 RSA 的 1-out-of-n OT 三轮实现（ot\_rsa.py 节选）}, label={lst:ot}]
+# ---- Round 1: sender -> receiver -------------------------------------
+def round1(self, ch, peer):
+    N, e = self.key.n, self.key.e
+    self.xs = [rand_below(N) for _ in range(self.n_msg)]   # n blinding factors
+    ch.send(self.name, peer, (N, e, self.xs), "public key and x_i")
+    return N, e, self.xs
+
+# ---- Round 2: receiver -> sender -------------------------------------
+def round2(self, ch, peer, N, e, xs):
+    k = rand_below(N)
+    self.k = k
+    y = xs[self.sigma] * modexp(k, e, N) % N    # y = x_sigma * k^e mod N
+    ch.send(self.name, peer, y, "blinded choice")
+    return y
+
+# ---- Round 3: sender -> receiver -------------------------------------
+def round3(self, ch, peer, y):
+    N, d = self.key.n, self.key.d
+    ciphers = []
+    for i in range(self.n_msg):
+        k_i = modexp(y * pow(self.xs[i], -1, N) % N, d, N)  # (y/x_i)^d
+        ciphers.append(mask(self.messages[i], k_i))          # m_i XOR H(k_i)
+    ch.send(self.name, peer, ciphers, "n encrypted messages")
+    return ciphers
+
+# ---- Local decryption: only index sigma works ------------------------
+def decrypt(self, ciphers):
+    return unmask(ciphers[self.sigma], self.k)
+\end{lstlisting}
+
+实现上有几个点：
+\begin{itemize}
+    \item 盲化因子 $x_i$ 和密钥一样是\textbf{一次性的}，每次协议都重新生成；
+    \item 模逆直接用 \texttt{pow(a,-1,N)}；$k_i=(y\cdot x_i^{-1})^{d}\bmod N$ 一共 $n$ 次私钥模幂，这是 OT 计算开销的大头；
+    \item 消息统一填成 \textbf{定长 32 字节块}再异或掩码，把长度侧信道\textbf{抹掉}；
+    \item 掩码是 $\texttt{SHA256}(\text{domain}\Vert k_i\Vert \text{ctr})$ 级联起来的 MGF1 风格密钥流。
+\end{itemize}
+
+\subsection{任务二：用 OT 求解百万富翁问题}
+
+\begin{lstlisting}[language=Python, caption={用 1-out-of-N OT 求解百万富翁问题（ot\_millionaires.py 节选）}, label={lst:otmp}]
+# MSG_ALICE_RICHER / MSG_EQUAL / MSG_BOB_RICHER are the three
+# allowed outputs of the millionaires problem.
+def compare_label(a, i):
+    if i < a:  return MSG_ALICE_RICHER   # i < a  -> Alice is richer
+    if i == a: return MSG_EQUAL          # i == a -> equal
+    return MSG_BOB_RICHER                # i > a  -> Bob is richer
+
+def build_ot_messages(a, N):
+    # m_i = cmp(a, i) for i = 1..N, padded to a fixed 32-byte block
+    return [pad_block(compare_label(a, i), MESSAGE_BLOCK)
+            for i in range(1, N + 1)]
+
+def ot_millionaires(a, b, N, bits=1024):
+    ch = Channel()
+    alice = OTSender("Alice", build_ot_messages(a, N), bits=bits)
+    bob   = OTReceiver("Bob", b - 1)          # sigma = b - 1
+    N_mod, e, xs = alice.round1(ch, bob.name)
+    y            = bob.round2(ch, alice.name, N_mod, e, xs)
+    ciphers      = alice.round3(ch, bob.name, y)
+    result       = unpad_block(bob.decrypt(ciphers))   # = cmp(a, b)
+    ch.send("Bob", "Alice", pad_block(result, MESSAGE_BLOCK), "result")
+    return result, ch
+\end{lstlisting}
+
+代码 \ref{lst:otmp} 里，Alice 只要把 $N$ 条消息准备好，Bob 用 $\sigma=b-1$ 取一次，拿到的就是最终三态结果。最后 Bob 把这个结果（\textbf{本来就是允许公开的输出}）定长回传给 Alice，两边结论就一致了。
+
+
+
+\subsection{协议流程演示}
+
+取 $N=10$、$a=7$、$b=3$、RSA 1024 位，两个方案都输出“Alice 更富有”，和明文参考结果对得上。消息交互日志如下。
+
+\begin{table}[h]
+\centering
+\begin{tabular}{cllrc}
+\toprule
+序号 & 发送方 & 接收方 & 消息含义 & 字节数 \\
+\midrule
+1 & Alice & Bob & 步骤1  RSA 公钥 (n, e) & 131 \\
+2 & Bob & Alice & 步骤2  k = x\textasciicircum{}e mod n − b（财富被随机数盲化） & 128 \\
+3 & Alice & Bob & 步骤3  素数 p 与 N=10 个压缩值 W\_i（已按自身财富扰动） & 352 \\
+4 & Bob & Alice & 步骤4  判定结果 1 比特（True = 加密方财富 $\geq$ 判定方财富） & 1 \\
+5 & Bob & Alice & 步骤1  RSA 公钥 (n, e) & 131 \\
+6 & Alice & Bob & 步骤2  k = x\textasciicircum{}e mod n − b（财富被随机数盲化） & 128 \\
+7 & Bob & Alice & 步骤3  素数 p 与 N=10 个压缩值 W\_i（已按自身财富扰动） & 352 \\
+8 & Alice & Bob & 步骤4  判定结果 1 比特（True = 加密方财富 $\geq$ 判定方财富） & 1 \\
+\bottomrule
+\end{tabular}
+\caption{任务一 Yao 方案的消息交互日志（$N=10$，$a=7$，$b=3$，RSA 1024 位；共 8 轮 / 1,224 B）}
+\label{tab:logyao}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{cllrc}
+\toprule
+序号 & 发送方 & 接收方 & 消息含义 & 字节数 \\
+\midrule
+1 & Alice & Bob & OT 第1轮  公钥 (N,e) 与 n=10 个盲化因子 x\_i & 1,411 \\
+2 & Bob & Alice & OT 第2轮  y = x\_$\sigma$ · k\textasciicircum{}e mod N（选择被随机 e 次幂盲化） & 128 \\
+3 & Alice & Bob & OT 第3轮  n=10 条加密消息 c\_i = m\_i $\oplus$ H(k\_i) & 320 \\
+4 & Bob & Alice & 结果回传  双方共同输出（三态结果本身） & 32 \\
+\bottomrule
+\end{tabular}
+\caption{任务二 OT 方案的消息交互日志（$N=10$，$a=7$，$b=3$，RSA 1024 位；共 4 轮 / 1,891 B）}
+\label{tab:logot}
+\end{table}
+
+从表里能看出来：Yao 方案\textbf{两轮一共 8 条消息}，其中第 3、7 条是 $N$ 个压缩值，占了通信量的大头；OT 方案只有 \textbf{4 条消息}，但第 1 条就要发 $N$ 个盲化因子（每个 $|N|$ 位），通信量反而更大。这正好是两种方案最核心的权衡：\textbf{Yao 通信量小，但交互轮数多、计算量大；OT 轮数少、计算量小，但通信量大}。
+
+\subsection{正确性测试}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcccc}
+\toprule
+测试项 & 规模 & 用例数 & 正确数 & 正确率 \\
+\midrule
+穷举全部 $(a,b)$（两方案合计） & $N=10$ & 200 & 200 & 100.00\% \\
+任务一 Yao 随机+边界用例 & $N=100$ & 106 & 106 & 100.00\% \\
+任务二 OT 随机+边界用例 & $N=100$ & 106 & 106 & 100.00\% \\
+1-out-of-8 OT 遍历全部选择 & $n=8$ & 160 & 160 & 100.00\% \\
+\bottomrule
+\end{tabular}
+\caption{正确性测试结果（RSA 1024 位）}
+\label{tab:corr}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+比较结果 & 用例数 & Yao 正确数 & OT 正确数 \\
+\midrule
+Bob 更富有 & 43 & 43 & 43 \\
+双方财富相等 & 18 & 18 & 18 \\
+Alice 更富有 & 45 & 45 & 45 \\
+\bottomrule
+\end{tabular}
+\caption{$N=100$ 随机测试中三种输出的分布与正确数}
+\label{tab:outcome}
+\end{table}
+
+RSA 1024 位下，$N=10$ 时\textbf{把 100 组 $(a,b)$ 全穷举了一遍}、$N=100$ 时\textbf{随机抽了 106 组（含边界用例）}，两个方案的正确率都是 \textbf{100.00\%}；1-out-of-8 OT 把所有选择都遍历了一遍，重复 20 轮共 160 次，也全对。三种输出（Alice 更富有 / Bob 更富有 / 双方财富相等）的分布和正确数见表 \ref{tab:outcome}，说明\textbf{相等的情况也处理对了}。
+
+\subsection{性能对比}
+
+在同一台机器、相同输入（$N=100$、$a=73$、$b=28$）、相同密码参数下对比两种方案，结果见表 \ref{tab:perf} 和图 \ref{fig:perfbar}。
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llrrrrr}
+\toprule
+方案 & RSA 位数 & 在线耗时 (ms) & 含密钥生成 (ms) & 通信量 (B) & 交互轮数 & 模幂次数 \\
+\midrule
+任务一 Yao 原始方案 & 1024 & 762.38 & 918.40 & 6,984 & 8 & 308 \\
+任务二 1-out-of-n OT & 1024 & 352.65 & 453.20 & 16,290 & 4 & 101 \\
+任务一 Yao 原始方案 & 2048 & 5,024.91 & 6,666.58 & 13,959 & 8 & 305 \\
+任务二 1-out-of-n OT & 2048 & 2,372.85 & 3,231.32 & 29,346 & 4 & 101 \\
+\bottomrule
+\end{tabular}
+\caption{两种方案的性能与通信开销对比（$N=100$，$a=73$，$b=28$）}
+\label{tab:perf}
+\end{table}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[font=\small]
+\draw[gray!18] (0,0.929) -- (10.50,0.929);
+\draw[gray!18] (0,1.857) -- (10.50,1.857);
+\draw[gray!18] (0,2.786) -- (10.50,2.786);
+\draw[gray!18] (0,3.714) -- (10.50,3.714);
+\draw[gray!18] (0,4.643) -- (10.50,4.643);
+\draw[->,thick] (0,0) -- (10.85,0);
+\draw[->,thick] (0,0) -- (0,5.55) node[above left] {在线耗时 (ms)};
+\draw (0,0.000) -- (-0.12,0.000) node[left] {0};
+\draw (0,0.929) -- (-0.12,0.929) node[left] {1000};
+\draw (0,1.857) -- (-0.12,1.857) node[left] {2000};
+\draw (0,2.786) -- (-0.12,2.786) node[left] {3000};
+\draw (0,3.714) -- (-0.12,3.714) node[left] {4000};
+\draw (0,4.643) -- (-0.12,4.643) node[left] {5000};
+\node[font=\small] at (2.625,-0.45) {RSA 1024 位};
+\fill[blue!55] (0.984,0) rectangle (2.330,0.708);
+\node[above,font=\scriptsize] at (1.657,0.708) {762};
+\fill[red!55] (2.625,0) rectangle (3.970,0.327);
+\node[above,font=\scriptsize] at (3.298,0.327) {353};
+\fill[blue!55] (0.120,5.250) rectangle (0.400,5.470);
+\node[right,font=\scriptsize] at (0.480,5.360) {Yao 原始方案};
+\fill[red!55] (0.120,4.830) rectangle (0.400,5.050);
+\node[right,font=\scriptsize] at (0.480,4.940) {1-out-of-n OT};
+\node[font=\small] at (7.875,-0.45) {RSA 2048 位};
+\fill[blue!55] (6.234,0) rectangle (7.580,4.666);
+\node[above,font=\scriptsize] at (6.907,4.666) {5,025};
+\fill[red!55] (7.875,0) rectangle (9.220,2.203);
+\node[above,font=\scriptsize] at (8.548,2.203) {2,373};
+\fill[blue!55] (5.370,5.250) rectangle (5.650,5.470);
+\node[right,font=\scriptsize] at (5.730,5.360) {Yao 原始方案};
+\fill[red!55] (5.370,4.830) rectangle (5.650,5.050);
+\node[right,font=\scriptsize] at (5.730,4.940) {1-out-of-n OT};
+\end{tikzpicture}
+\caption{两种方案的在线耗时对比（$N=100$，不含一次性密钥生成开销）}
+\label{fig:perfbar}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{耗时}：OT 的在线耗时大约是 Yao 的 \textbf{46\%～47\%}。原因是 Yao 要跑\textbf{两轮}（每轮 $N$ 次私钥模幂，加起来约 $2N$ 次），而 OT 只要\textbf{一轮}（$N$ 次私钥模幂）。实测模幂次数：Yao 约 308 次，OT 约 101 次，和理论上 $2N$ 对 $N$ 的关系对得上。
+    \item \textbf{通信量}：Yao 约 6,984 B（1024 位），OT 约 16,290 B，OT 差不多是 Yao 的 2.3 倍。因为 OT 第 1 轮要发 $N$ 个 $|N|$ 位的盲化因子 $x_i$，而 Yao 传的是 $N$ 个 $|p|=|n|/4$ 位的压缩值。
+    \item \textbf{交互轮数}：Yao 8 轮，OT 4 轮（含结果回传），直接少一半。网络延迟大的时候，这一点往往比字节数更值钱。
+    \item \textbf{密钥生成}：Yao 要 2 把 RSA 密钥（双方各当一次加密方），OT 只要 1 把。RSA-1024 单次密钥生成约 93.8 ms，RSA-2048 约 721.3 ms，属于一次性开销，密钥复用一下就能摊薄。
+    \item \textbf{安全参数的影响}：从 1024 位到 2048 位，两者耗时都涨了约 6.6～6.7 倍，和模幂运算 $O(|n|^{2})$～$O(|n|^{3})$ 的复杂度增长对得上，相对优劣关系没变。
+\end{itemize}
+
+\subsection{可扩展性分析}
+
+财富上界 $N$ 直接决定要处理多少个候选位置。图 \ref{fig:sctime} 和图 \ref{fig:scbytes} 是 $N=10,25,50,100$ 时两种方案的耗时和通信量，原始数据在表 \ref{tab:scal}。
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[font=\small]
+\draw[gray!18] (0,0.000) -- (10.50,0.000);
+\draw[gray!18] (0,1.400) -- (10.50,1.400);
+\draw[gray!18] (0,2.800) -- (10.50,2.800);
+\draw[gray!18] (0,4.200) -- (10.50,4.200);
+\draw[gray!18] (0,5.600) -- (10.50,5.600);
+\draw[->,thick] (0,0) -- (10.85,0) node[below right] {财富上界 $N$};
+\draw[->,thick] (0,0) -- (0,5.95) node[above left] {在线耗时 (ms)};
+\draw (0.000,0) -- (0.000,-0.12) node[below] {0};
+\draw (0.955,0) -- (0.955,-0.12) node[below] {10};
+\draw (2.386,0) -- (2.386,-0.12) node[below] {25};
+\draw (4.773,0) -- (4.773,-0.12) node[below] {50};
+\draw (9.545,0) -- (9.545,-0.12) node[below] {100};
+\draw (0,0.000) -- (-0.12,0.000) node[left] {0};
+\draw (0,1.400) -- (-0.12,1.400) node[left] {200};
+\draw (0,2.800) -- (-0.12,2.800) node[left] {400};
+\draw (0,4.200) -- (-0.12,4.200) node[left] {600};
+\draw (0,5.600) -- (-0.12,5.600) node[left] {800};
+\draw[blue,thick,mark=square*,mark options={fill=white,solid}] plot coordinates {(0.955,0.606) (2.386,1.338) (4.773,2.632) (9.545,5.097)};
+\draw[red,thick,mark=*,mark options={fill=white,solid}] plot coordinates {(0.955,0.255) (2.386,0.635) (4.773,1.275) (9.545,2.494)};
+\draw[black!45] (5.45,4.25) rectangle (9.60,5.35);
+\draw[blue,thick,mark=square*] (5.60,5.15) -- (6.35,5.15);
+\node[right,font=\footnotesize] at (6.55,5.15) {任务一 Yao 原始方案};
+\draw[red,thick,mark=*] (5.60,4.60) -- (6.35,4.60);
+\node[right,font=\footnotesize] at (6.55,4.60) {任务二 1-out-of-n OT};
+\end{tikzpicture}
+\caption{财富上界 $N$ 对在线耗时的影响（RSA 1024 位）}
+\label{fig:sctime}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[font=\small]
+\draw[gray!18] (0,0.000) -- (10.50,0.000);
+\draw[gray!18] (0,1.556) -- (10.50,1.556);
+\draw[gray!18] (0,3.111) -- (10.50,3.111);
+\draw[gray!18] (0,4.667) -- (10.50,4.667);
+\draw[->,thick] (0,0) -- (10.85,0) node[below right] {财富上界 $N$};
+\draw[->,thick] (0,0) -- (0,5.95) node[above left] {通信量 (Byte)};
+\draw (0.000,0) -- (0.000,-0.12) node[below] {0};
+\draw (0.955,0) -- (0.955,-0.12) node[below] {10};
+\draw (2.386,0) -- (2.386,-0.12) node[below] {25};
+\draw (4.773,0) -- (4.773,-0.12) node[below] {50};
+\draw (9.545,0) -- (9.545,-0.12) node[below] {100};
+\draw (0,0.000) -- (-0.12,0.000) node[left] {0};
+\draw (0,1.556) -- (-0.12,1.556) node[left] {5000};
+\draw (0,3.111) -- (-0.12,3.111) node[left] {10000};
+\draw (0,4.667) -- (-0.12,4.667) node[left] {15000};
+\draw[blue,thick,mark=square*,mark options={fill=white,solid}] plot coordinates {(0.955,0.381) (2.386,0.679) (4.773,1.177) (9.545,2.171)};
+\draw[red,thick,mark=*,mark options={fill=white,solid}] plot coordinates {(0.955,0.588) (2.386,1.335) (4.773,2.579) (9.545,5.068)};
+\draw[black!45] (4.85,4.25) rectangle (9.00,5.35);
+\draw[blue,thick,mark=square*] (5.00,5.15) -- (5.75,5.15);
+\node[right,font=\footnotesize] at (5.95,5.15) {任务一 Yao 原始方案};
+\draw[red,thick,mark=*] (5.00,4.60) -- (5.75,4.60);
+\node[right,font=\footnotesize] at (5.95,4.60) {任务二 1-out-of-n OT};
+\end{tikzpicture}
+\caption{财富上界 $N$ 对通信量的影响（RSA 1024 位）}
+\label{fig:scbytes}
+\end{figure}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ccccccc}
+\toprule
+财富上界 $N$ & Yao 耗时 (ms) & Yao 通信量 (B) & Yao 轮数 & OT 耗时 (ms) & OT 通信量 (B) & OT 轮数 \\
+\midrule
+10 & 86.51 & 1,224 & 8 & 36.44 & 1,890 & 4 \\
+25 & 191.15 & 2,184 & 8 & 90.75 & 4,291 & 4 \\
+50 & 376.01 & 3,783 & 8 & 182.09 & 8,291 & 4 \\
+100 & 728.16 & 6,979 & 8 & 356.35 & 16,290 & 4 \\
+\bottomrule
+\end{tabular}
+\caption{财富上界 $N$ 对耗时与通信量的影响（RSA 1024 位）}
+\label{tab:scal}
+\end{table}
+
+两者的耗时和通信量都随 $N$ \textbf{线性增长}，但斜率不一样：耗时的斜率比大概是 $2:1$（Yao 跑两轮），通信量的斜率比大概是 $1:2.3$（Yao 传 $|p|=\frac{1}{4}|n|$ 位的压缩值，OT 传 $|N|$ 位的盲化因子）。也就是说，\textbf{财富范围很大的时候，Yao 在通信量上占优，OT 在耗时和轮数上占优}。实际工程里可以用“分桶 / 按位比较 + OT 扩展”之类的办法把 OT 的通信量降到 $O(\log N)$。
+
+
+
+\subsection{半诚实模型下双方的可见信息}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\toprule
+方案 & 参与方 & 可见信息 \\
+\midrule
+任务一 Yao & Alice & 自己的财富 a \\
+ &  & 两轮各一个盲化值 k = x\textasciicircum{}e − b mod n \\
+ &  & 自己生成的 RSA 私钥 d \\
+ &  & 对方回传的 1 比特判定结果 \\
+ &  & 最终三态输出 \\
+任务一 Yao & Bob & 自己的财富 b \\
+ &  & Alice 的 RSA 公钥 (n,e) \\
+ &  & 素数 p 与 N 个压缩值 W\_i（其中只有自己那一位可解读） \\
+ &  & 最终三态输出 \\
+任务二 OT & Alice & 自己的财富 a \\
+ &  & 自己的 RSA 密钥对 \\
+ &  & 盲化选择 y = x\_$\sigma$·k\textasciicircum{}e mod N \\
+ &  & 最终三态输出 \\
+任务二 OT & Bob & 自己的财富 b \\
+ &  & 公钥 (N,e) 与 N 个盲化因子 x\_i \\
+ &  & N 条密文 c\_i（只能解开第 b 条） \\
+ &  & 最终三态输出 \\
+\bottomrule
+\end{tabular}
+\caption{半诚实模型下双方的可见信息清单}
+\label{tab:visible}
+\end{table}
+
+\subsection{为何不应泄露未选消息、选择位与额外财富信息}
+
+\begin{enumerate}
+    \item \textbf{未选消息（OT 的发送方隐私）}：在百万富翁场景里，Alice 的 $N$ 条消息 $m_i=\text{cmp}(a,i)$ 其实\textbf{把她的财富完整编码进去了}——只要能读出足够多条，二分一下就能定出 $a$ 的精确值。所以接收方一旦能解开没选的那些消息，协议就退化成“明文交换”了，隐私目标直接落空。OT 靠“每条消息用不同的 $k_i$ 掩码，而且只有 $k_\sigma$ 能解”来堵这条通路。
+    \item \textbf{选择位 $\sigma$（OT 的接收方隐私）}：$\sigma=b-1$ \textbf{就是 Bob 的财富本身}。发送方要是能认出 $\sigma$，Bob 的私有输入就全暴露了。协议里 $y=x_\sigma\cdot k^{e}\bmod N$ 被随机的 $e$ 次幂盲化，在 RSA 假设下和 $\sigma$ 独立，所以选择位是保住的。
+    \item \textbf{额外的财富信息（两种方案共有）}：协议允许泄露的只有\textbf{比较结果本身以及它的必然推论}（比如由“Alice 更富有”能推出 $a>b$，由“相等”能推出 $a=b$）。除此之外，关于 $a$ 或 $b$ 的具体取值、差值、落在哪个区间之类的信息都不该漏。
+          \begin{itemize}
+              \item Yao 方案里，Alice 收到的是被随机 $x$ 盲化过的 $k$。她虽然有私钥 $d$，但不知道 $x$，没法判断 $N$ 个 $Y_i$ 里哪个是 $x$，所以学不到 $b$；Bob 只掌握自己那一位的对应关系，其余 $W_i$ 因为没 $d$ 也解不出来，所以学不到 $a$。
+              \item OT 方案里，安全性直接归约到 OT 原语的双向保护，而且消息定长填充，长度侧信道也堵住了。
+          \end{itemize}
+    \item \textbf{相等判定的代价}：Yao 方案为了区分相等，必须交换角色再跑一轮，这样双方会各多知道一个 1 比特的中间结论（$a\ge b$ 和 $b\ge a$）。但这两个其实都\textbf{被最终输出蕴含了}，不算额外泄露。OT 方案一轮就能拿到三态结果，暴露面更小。
+\end{enumerate}
+
+\subsection{隐私性实证结果}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+隐私目标 & 实验方法 & 实测结果 & 结论 \\
+\midrule
+发送方不可知选择 $\sigma$ & 对 $\sigma=0,1$ 各采样 300 个 $y$，训练经验最优阈值分类器 & 两类样本均值 0.4936 / 0.4893，标准差 0.2963 / 0.2877；分类器准确率 53.00\% & 接近随机猜测 50\%，无法区分 \\
+接收方不可知未选消息 & 用自己掌握的 $k$ 逐条解密全部密文 & 可识别明文 1 条（期望 1 条），其余为乱码 & 仅第 $\sigma$ 条可解，其余不可读 \\
+\bottomrule
+\end{tabular}
+\caption{隐私性实证结果（RSA 1024 位）}
+\label{tab:priv}
+\end{table}
+
+接收方拿自己的 $k$ 试着把全部密文都解了一遍，结果如下：
+\begin{itemize}
+\item $c_{0}$ 解密前 24 hex：\texttt{06b8c33c4192358603213edf}（乱码，不可读）
+\item $c_{1}$ 解密前 24 hex：\texttt{e58f8ce696b9e8b4a2e5af8c}（选中，可正确解密）
+\item $c_{2}$ 解密前 24 hex：\texttt{844930d00a46871b6bb7e3b1}（乱码，不可读）
+\end{itemize}
+
+这里要补一句：上面那个“分类器准确率”只是\textbf{一次具体的攻击尝试}，用来直观说明 $y$ 对 $\sigma$ 没有可用的统计偏差；发送方隐私的严格保证还是来自 RSA 假设下的不可区分性，而不是某一次统计检验。
+
+\section{实验总结}
+这次实验把百万富翁问题的两种解法都做了一遍，也做了比较系统的对比：
+
+\begin{enumerate}
+    \item \textbf{任务一}实现的是 Yao 原始方案：用 RSA 公钥变换把财富索引藏起来，中间经过私钥运算、模素数压缩、间距检验与失败重试、按自身财富加 $1$ 扰动，最后判定方只查自己那一位就能得出大小关系；相等的情况则\textbf{通过交换角色、换全新随机数和密钥再跑一轮}来处理。
+    \item \textbf{任务二}实现了基于 RSA 的 1-out-of-$n$ OT（EGL 构造），并给出一种\textbf{只要 1 次 OT、3 轮交互}就能直接输出三态结果的百万富翁解法。
+    \item \textbf{正确性}：两方案在穷举和小样本随机测试里正确率都是 \textbf{100\%}，相等情况也都处理对了。
+    \item \textbf{性能}：OT 耗时差不多是 Yao 的 \textbf{一半}，交互轮数也减半；但通信量约是 Yao 的 \textbf{2.3 倍}（1024 位下 16,290 B 对 6,984 B）。两者随财富上界 $N$ 都是线性增长。
+    \item \textbf{隐私性}：半诚实模型下两方案都只泄露比较结果及其必然推论。OT 方案的安全性可以很清晰地归约到原语的双向保护，结构更干净、也更好做形式化论证；Yao 原始方案则依赖“随机数 $x$ 未知”和“私钥 $d$ 不在手里”这两点，论证相对绕一些，而且还要多跑一轮来处理相等。
+\end{enumerate}
+
+做完这次实验，我对安全两方计算的基本想法有了更具体的感受：\textbf{“不泄露输入而只算出函数”}是真的能做到的，代价就体现在计算、通信和交互轮数上；而 OT 作为基础原语，能把比较复杂的安全计算问题规整地归约到少数几个密码学假设上。
+
+\begin{thebibliography}{9}
+\bibitem{yao1982} A. C. Yao, ``Protocols for Secure Computations,'' in \textit{Proc. 23rd Annual Symposium on Foundations of Computer Science (FOCS)}, 1982, pp. 160--164.
+\bibitem{rabin1981} M. O. Rabin, ``How to Exchange Secrets with Oblivious Transfer,'' Technical Report TR-81, Aiken Computation Laboratory, Harvard University, 1981.
+\bibitem{egl1985} S. Even, O. Goldreich, and A. Lempel, ``A Randomized Protocol for Signing Contracts,'' \textit{Communications of the ACM}, vol. 28, no. 6, pp. 637--647, 1985.
+\end{thebibliography}
+
+%以下是一些贴图、引用和贴代码（示例为matlab）的示例，latex具体语法可以自行上网/gpt搜索
+% 首先我们先对S-UNIWARD算法隐写的结果进行可视化，下图\ref{fig:bbp01}-图\ref{fig:bbp02}分别对应嵌入率payload=0.1、0.2、0.3、0.4、0.5bbp的结果。图中的cover为原图像，embedding changes对应嵌入信息，Stego Image对应隐写后图像。可以看到，随着嵌入率bbp的提高，嵌入的信息越多，对原图像的修改量就越大（但用肉眼仍然难以分辨）。
+% \begin{figure}[h!t!b!p]
+%     \centering
+%     \includegraphics[width=0.8\linewidth]{bbp2.png}
+%     \caption{payload=0.2bbp时隐写结果}
+%     \label{fig:bbp02}
+% \end{figure}
+% \begin{lstlisting}[language=Matlab, caption={S-UNIWARD 隐写嵌入代码}]
+% clc; clear all;
+% coverPath = 'Bossbase_1.01/';
+% payloads = [0.1, 0.2, 0.3, 0.4, 0.5];
+% sPaths = {'stego_01','stego_02','stego_03','stego_04','stego_05'};
+% \end{lstlisting}
+% 如需参考文献可以取消以下两行代码注释并在reference.bib中添加bib引用，然后在正文中用\ref引用
+% \bibliographystyle{ieeetr}   % 或 plain / unsrt / IEEEtran 等
+% \bibliography{reference}    
+\end{document}
